@@ -1,9 +1,12 @@
+
+c(TRUE,FALSE,FALSE) %>% any()
+
 find_gps_dists <- 
 function(points1,points2,min.only=TRUE){
   
   # tests
-  stopifnot(class(points1) == "data.frame")
-  stopifnot(class(points2) == "data.frame")
+  stopifnot(any(class(points1) == "data.frame"))
+  stopifnot(any(class(points2) == "data.frame"))
   
   if(ncol(points1) != 2 | ncol(points2) != 2){
     stop("data frames must have 2 columns only")
