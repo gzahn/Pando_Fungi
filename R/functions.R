@@ -1,5 +1,5 @@
 find_gps_dists <- 
-function(points1,points2){
+function(points1,points2,min.only=TRUE){
   
   # tests
   stopifnot(class(points1) == "data.frame")
@@ -24,11 +24,20 @@ function(points1,points2){
   }
   
   distances <- list()
-  for(i in 1:nrow(mypoints)){
+  for(i in 1:nrow(points2)){
     
     mydistfunction <- function(x){geosphere::distHaversine(x,points2[i,])}
     colname <- paste0("dist_to_",i)
     distances[[colname]] <- map_dbl(mylist, mydistfunction)
   }
-  return(as.data.frame(distances))
+  
+  x <- as.data.frame(distances)
+  mins <- apply(x,1,min)
+  
+  if(min.only){
+    return(mins)
+  } else {
+    return(x)
+  }
+  
 }
