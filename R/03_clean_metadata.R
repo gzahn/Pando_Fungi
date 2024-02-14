@@ -28,6 +28,30 @@ meta <-
   mutate(distance_from_fence = find_gps_dists(pando_points,
                                              fence))
 
+# load manifest from seqCoast
+manifest <- read_csv("./Data/4539_SampleManifest.csv",skip = 1) %>% clean_names()
+
+# remove accidental duplicated sample ids
+meta <- meta[!duplicated(meta$sample),]
+
+# list of file names (without path)
+# change to include pattern: "_R1_" only
+seqfiles <- list.files("./Data/Seqs/")
+
+# get seqcoast id numbers for files
+l <- seqfiles %>% str_split("_")
+seqcoast_id <- map_chr(l,2)
+
+meta <- 
+data.frame(seq_coast_tube_id=seqcoast_id,seqfiles) %>% 
+  mutate(seq_coast_tube_id = as.numeric(seq_coast_tube_id)) %>% 
+  full_join(manifest) %>% 
+  select(seq_coast_tube_id,seqfiles,success,sample_name) %>% 
+  rename("sample" = "sample_name") %>%  
+  full_join(meta)
+
+meta <- meta[!duplicated(meta$sample),]
+
 
 # SAVE CLEAN METADATA ####
 saveRDS(meta,"./Data/Clean_Metadata.RDS")
