@@ -3,4 +3,5 @@
 .RData
 .Ruserdata
 Data/Seqs/*
+Data/Raw/*
 .DS_Store
