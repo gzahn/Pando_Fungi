@@ -40,20 +40,17 @@ filtpath <- file.path(path, "filtered") # Filtered files go into the filtered/ s
 if(!file_test("-d", filtpath)) dir.create(filtpath) # make directory for filtered fqs if not already present
 
 
-# Here, the pattern is set to match the forward reads tagged as "...pass_1.fastq.gz" in their filenames; 
-# "...pass_2.fastq.gz" for reverse reads
+# change filenames since itsxpress output "ITS1"
+old.filenames <- list.files(path,full.names = TRUE,pattern=".fastq.gz")
+new.filenames <- old.filenames %>% str_replace("ITS1","ITS2")
+file.rename(old.filenames,new.filenames)
 
-# Your data may differ, using "F" and "R" in the filenames, or something similar..
-# Be sure to change that pattern to fit your own files when using your own data
 fns <- sort(list.files(file.path(path), full.names = TRUE, pattern = "ITS2.fastq.gz")) # make pattern match your FWD reads
 sample.ids <- basename(fns) %>% str_split("_") %>% map_chr(2)
 meta <- readRDS("./Data/Clean_Metadata.RDS")
 row.names(meta) <- as.character(meta$seq_coast_tube_id)
 sample.names <- meta[sample.ids,"sample"]
 
-sample.names
-sample.ids
-meta[sample.ids,]
 # some files may not have corresponding metadata for some reason!?
 goodsamples <- which(!is.na(sample.names))
 meta <- meta[sample.ids,][goodsamples,]
@@ -66,7 +63,7 @@ fns <- fns[goodsamples]
 # visualize a couple of fwd read quality profiles to help select reasonable filtration parameters
 # you can select any number of files here...
 # as-is, this just shows the Fwd and Rev quality profiles for the 1st and 2nd files
-p1 <- plotQualityProfile(fns[1]) + ggtitle("Example forward reads")
+p1 <- plotQualityProfile(fns[11]) + ggtitle("Example forward reads")
 
 # display and save the plots
 p1
@@ -77,8 +74,7 @@ ggsave("./Output/Figs/unfiltered_quality_plots.png",dpi=500,height = 6,width = 6
 # here, we decide what filenames we want our filtered reads to be called
 # in this case, we use the base name of the sample and save the filtered files into the "filtered" subdirectory
 filts_f <- file.path(path, "filtered", paste0(sample.ids, "_FWD_filt.fastq.gz"))
-fns
-meta
+
 # this is the actual qualit control step
 # These values are informed by our quality plots
 out <- filterAndTrim(fns, filts_f, # input and output file names as denoted above
@@ -162,6 +158,10 @@ seqtab.nochim <- seqtab.nochim[,colSums(seqtab.nochim) > 1]
 
 # save cleaned up seqtab
 saveRDS(seqtab.nochim,"./Output/seqtab.nochim.clean.RDS")
+dim(seqtab.nochim)
+
+# filter metadata to match remaining samples
+meta <- meta[row.names(meta) %in% row.names(seqtab.nochim),]
 
 # Find and remove contaminants ####
 contams = isContaminant(seqtab.nochim, neg = grepl("blank",meta$sample), normalize = TRUE)
@@ -185,7 +185,7 @@ tax <- assignTaxonomy(seqtab.nochim,
                       tryRC = TRUE,
                       verbose = TRUE)
 tax
-
+beepr::beep(sound=2)
 # BUILD PHYLOSEQ ####
 
 met <- sample_data(meta)

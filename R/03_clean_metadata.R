@@ -37,7 +37,7 @@ meta2 <- meta[!duplicated(meta$sample),]
 
 # list of file names (without path)
 # change to include pattern: "_R1_" only
-seqfiles <- list.files("./Data/Raw/")
+seqfiles <- list.files("./Data/Clean",pattern = "fastq.gz")
 
 # get seqcoast id numbers for files
 l <- seqfiles %>% str_split("_")
