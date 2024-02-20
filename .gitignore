@@ -1,8 +1,15 @@
+# R stuff, etc.
+.DS_Store
 .Rproj.user
 .Rhistory
 .RData
 .Ruserdata
-Data/Seqs/*
-Data/Raw/*
-.DS_Store
+
+# Sequence files
+Data/Seqs
+Data/Raw
+Data/Clean
+
+# Taxonomy databases
 Taxonomy
+
