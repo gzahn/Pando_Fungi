@@ -82,9 +82,40 @@ mod_tab <- list(m1,m2,m3,m4,m5,m6) %>%
   reduce(full_join) %>% 
   filter(term != "(Intercept)") %>% 
   mutate(term = term %>% str_remove("sample_type"))
+saveRDS(mod_tab,"./Output/alpha_div_models.RDS")
+
 
 mod_tab %>% 
   kableExtra::kable() %>% 
   kableExtra::kable_classic() %>% 
   kableExtra::column_spec(5,bold = if_else(mod_tab$p.value < 0.05,TRUE,FALSE))
+
+sam_long <- 
+sam %>% 
+  mutate(across(all_of(c("asv_richness","asv_shannon","asv_simpson",
+                         "spp_richness","spp_shannon","spp_simpson")),scale)) %>% 
+  pivot_longer(c(asv_richness,asv_shannon,asv_simpson,
+                 spp_richness,spp_shannon,spp_simpson))
+
+
+ggmap(area) +
+  geom_point(data=sam_long,
+             aes(color=value)) +
+  facet_wrap(~name) +
+  scale_color_viridis_c(option = 'magma')
+
+
+ggmap(area) +
+  geom_density_2d(data=sam,
+             aes(x=lon,y=lat,fill=asv_richness,group=tree)) +
+  scale_fill_gradient()
+
+
+
+  
+sam
+ps %>% 
+  plot_richness(measures = c("Observed","Simpson","Shannon"),
+                color = "sample_type",sortby = "Observed")
+
 
