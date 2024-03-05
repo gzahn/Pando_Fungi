@@ -42,7 +42,7 @@ add_alphadiv_measures <- function(physeq){
 
 ## data ####
 # asv-level physeq
-ps <- readRDS("./Output/clean_phyloseq_object.RDS")
+ps <- readRDS("./Output/ps_cleaned_w_tree.RDS")
 # species-level physeq
 ps_species <- 
   tax_glom(ps,"Species")
