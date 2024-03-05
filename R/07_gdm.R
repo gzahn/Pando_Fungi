@@ -3,7 +3,7 @@ library(tidyverse)
 library(gdm)
 
 
-fung <- readRDS("./Output/clean_phyloseq_object.RDS")
+fung <- readRDS("./Output/ps_cleaned_w_tree.RDS")
 # extract species by site info
 epi <- 
   fung %>% 
