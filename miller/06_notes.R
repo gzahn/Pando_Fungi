@@ -156,7 +156,7 @@ area <-
                        zoom = 15,
                        scale = 2,
                        style=mapstyle,
-                       key = "AIzaSyC0vX4leN2FONit1fqsKVtZ4p8yt7KG2g4")
+                       key = "APIKEY") # Keep key secret
 
 # asv_richness
 map_asv_rich <- 
@@ -256,7 +256,7 @@ area <-
                        zoom = 15,
                        scale = 2,
                        style=mapstyle,
-                       key = "AIzaSyC0vX4leN2FONit1fqsKVtZ4p8yt7KG2g4")
+                       key = "APIKEY") # Keep key secret
 
 # asv_richness
 map_asv_rich <- 
