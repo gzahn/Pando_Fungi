@@ -35,6 +35,8 @@ set.seed(666) # "random" seed for reproducibility
 
 # File parsing - 
 
+<<<<<<< HEAD
+path <- "./Data/Raw" # CHANGE to the directory containing your demultiplexed fastq files when using your own data
 path <- "./Data/Clean" # CHANGE to the directory containing your demultiplexed fastq files when using your own data
 filtpath <- file.path(path, "filtered") # Filtered files go into the filtered/ subdirectory
 if(!file_test("-d", filtpath)) dir.create(filtpath) # make directory for filtered fqs if not already present
@@ -45,6 +47,8 @@ old.filenames <- list.files(path,full.names = TRUE,pattern=".fastq.gz")
 new.filenames <- old.filenames %>% str_replace("ITS1","ITS2")
 file.rename(old.filenames,new.filenames)
 
+<<<<<<< HEAD
+fns <- sort(list.files(file.path(path), full.names = TRUE, pattern = "R1_001.fastq.gz")) # make pattern match your FWD reads
 fns <- sort(list.files(file.path(path), full.names = TRUE, pattern = "ITS2.fastq.gz")) # make pattern match your FWD reads
 sample.ids <- basename(fns) %>% str_split("_") %>% map_chr(2)
 meta <- readRDS("./Data/Clean_Metadata.RDS")
@@ -79,6 +83,12 @@ filts_f <- file.path(path, "filtered", paste0(sample.ids, "_FWD_filt.fastq.gz"))
 # These values are informed by our quality plots
 out <- filterAndTrim(fns, filts_f, # input and output file names as denoted above
                      maxN=0, # uncalled bases are currently not supported in dada2
+<<<<<<< HEAD
+                     maxEE=3, # refers to the maximum expected errors allowed
+                     truncQ=2, # special value denoting "end of good quality sequence" (optional)
+                     rm.phix=TRUE, # automatically remove PhiX spike-in reads from sequencing center
+                     compress=TRUE, # compress output files with gzip
+                     multithread=20) # On Windows set multithread=FALSE
                      maxEE=2, # refers to the maximum expected errors allowed
                      truncQ=2, # special value denoting "end of good quality sequence" (optional)
                      rm.phix=TRUE, # automatically remove PhiX spike-in reads from sequencing center
@@ -103,6 +113,10 @@ ggsave("./Output/Figs/filtered_quality_comparison.png",dpi=300,height = 6,width 
 # LEARN ERROR RATES ####
 
 # learn errors
+<<<<<<< HEAD
+errF <- learnErrors(filts_f, multithread=16, MAX_CONSIST = 20,verbose = 2,randomize = TRUE) # set multithread = FALSE on Windows
+saveRDS(errF,"./Output/errF.RDS")
+errF <- readRDS("./Output/errF.RDS")
 errF <- learnErrors(filts_f, multithread=TRUE, MAX_CONSIST = 20,verbose = 2) # set multithread = FALSE on Windows
 saveRDS(errF,"./Output/errF.RDS")
 
@@ -118,6 +132,17 @@ derepF <- derepFastq(filts_f, verbose=TRUE)
 names(derepF) <- 
   names(derepF) %>% 
   str_remove("_FWD_filt.fastq.gz")
+<<<<<<< HEAD
+saveRDS(derepF,"./Output/derepF.RDS")
+derepF <- readRDS("./Output/derepF.RDS")
+
+# SAMPLE INFERRENCE ####
+dadaFs <- dada(derepF, err=errF, multithread=TRUE, selfConsist = FALSE, verbose=TRUE) # set multithread = FALSE on Windows
+saveRDS(dadaFs,"Output/dadaFs.RDS")
+rm(derepF)
+# MAKE SEQUENCE TABLE ####
+seqtab <- makeSequenceTable(dadaFs)
+rm(dadaFs)
 
 # SAMPLE INFERRENCE ####
 dadaFs <- dada(derepF, err=errF, multithread=TRUE, selfConsist = TRUE, verbose=TRUE, pool = "pseudo") # set multithread = FALSE on Windows
@@ -186,6 +211,13 @@ tax <- assignTaxonomy(seqtab.nochim,
                       verbose = TRUE)
 tax
 beepr::beep(sound=2)
+<<<<<<< HEAD
+saveRDS(tax,"./Output/sequence_taxonomy.RDS")
+
+dim(seqtab.nochim)
+dim(meta)
+dim(tax)
+
 # BUILD PHYLOSEQ ####
 
 met <- sample_data(meta)
@@ -193,9 +225,13 @@ sample_names(met)
 otu <- otu_table(seqtab.nochim,taxa_are_rows = FALSE)
 sample_names(otu)
 taxa <- tax_table(tax)
+<<<<<<< HEAD
+taxa_names(taxa)
 sample_names(taxa)
 
 ps <- phyloseq(met,otu,taxa)
 
 saveRDS(ps,"./Output/phyloseq_object_not-cleaned.RDS")
+<<<<<<< HEAD
+ps
 

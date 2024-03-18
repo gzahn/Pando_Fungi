@@ -19,6 +19,15 @@ ps
 fung <- subset_taxa(ps,Kingdom == "k__Fungi")
 
 
+
+
+# remove low-count samples
+fung <- subset_samples(fung, sample_sums(fung) >= 10)
+
+# remove low-count ASVs
+taxa_sums(fung) %>% plot
+fung <- subset_taxa(fung, taxa_sums(fung) > 1)
+
 # not sure why these don't work
 # add refseq slot
 # ps@refseq <- taxa_names(ps) %>% DNAStringSet()
@@ -37,11 +46,13 @@ fung <- subset_samples(fung, sample_sums(fung) >= 100)
 taxa_sums(fung) %>% plot
 fung <- subset_taxa(fung, taxa_sums(fung) > 0)
 
+
 # remove taxa with no phylum assignment
 fung <- subset_taxa(fung, !is.na(Phylum))
 
 # EXPORT ####
 saveRDS(fung,"./Output/clean_phyloseq_object.RDS")
+
 
 ##################################################
 fung %>% 
@@ -69,3 +80,4 @@ fung %>%
 
 plot_ordination(fung, ord, color="distance_from_edge") +
   facet_wrap(~sample_type,scales = 'free')
+

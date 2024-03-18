@@ -24,4 +24,19 @@ for(i in ps@sam_data$tree){
   epi <- epi %>% subset_taxa(taxa_sums(epi) > 0)
   prop_nested[i] <- sum(taxa_names(endo) %in% taxa_names(epi)) / ntaxa(endo)
 }
+<<<<<<< HEAD
+dev.off()
+prop_nested %>% plot
+
+nested_df <- 
+microbiome::meta(ps) %>% 
+  full_join(data.frame(nestedness=prop_nested,tree=names(prop_nested))) %>% 
+  select(-c(sample,sample_type,fwd_filepath,rev_filepath)) 
+nested_df %>% 
+  ggplot(aes(x=distance_from_edge,y=nestedness)) +
+  geom_point()
+
+nested_df %>% 
+  glm(data=.,formula=nestedness~distance_from_edge) %>% 
+  summary()
 prop_nested %>% summary

@@ -13,3 +13,12 @@ Data/Clean
 # Taxonomy databases
 Taxonomy
 
+# large files
+./Output/derepF.RDS
+./Output/ITS_ML_Distance.RDS
+Output/ITS_ML_Distance.RDS
+Output/ITS_dna_alignment_muscle.RDS
+Output/ITS_treeNJ.RDS
+Output/derepF.RDS
+Output/sequence_taxonomy.RDS
+
