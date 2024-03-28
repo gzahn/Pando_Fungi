@@ -1,5 +1,4 @@
 
-c(TRUE,FALSE,FALSE) %>% any()
 
 find_gps_dists <- 
 function(points1,points2,min.only=TRUE){

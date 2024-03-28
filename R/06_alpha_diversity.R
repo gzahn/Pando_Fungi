@@ -5,6 +5,9 @@ library(phyloseq)
 library(vegan)
 library(tidyverse)
 library(broom)
+library(ggmap)
+library(zahntools)
+library(patchwork)
 options(scipen = 999)
 # functions
 add_alphadiv_measures <- function(physeq){
@@ -39,6 +42,9 @@ add_alphadiv_measures <- function(physeq){
   return(physeq)
 }
 
+ra <- function(x){x/sum(x)}
+
+'%ni%' <- Negate('%in%')
 
 ## data ####
 # asv-level physeq
@@ -98,24 +104,199 @@ sam %>%
                  spp_richness,spp_shannon,spp_simpson))
 
 
-ggmap(area) +
-  geom_point(data=sam_long,
-             aes(color=value)) +
-  facet_wrap(~name) +
-  scale_color_viridis_c(option = 'magma')
-
-
-ggmap(area) +
-  geom_density_2d(data=sam,
-             aes(x=lon,y=lat,fill=asv_richness,group=tree)) +
-  scale_fill_gradient()
-
-
-
   
-sam
+# plot alpha div
 ps %>% 
   plot_richness(measures = c("Observed","Simpson","Shannon"),
                 color = "sample_type",sortby = "Observed")
 
 
+ps_species@tax_table[,1] <- ps_species@tax_table[,1] %>% str_remove(".__")
+ps_species@tax_table[,2] <- ps_species@tax_table[,2] %>% str_remove(".__")
+ps_species@tax_table[,3] <- ps_species@tax_table[,3] %>% str_remove(".__")
+ps_species@tax_table[,4] <- ps_species@tax_table[,4] %>% str_remove(".__")
+ps_species@tax_table[,5] <- ps_species@tax_table[,5] %>% str_remove(".__")
+ps_species@tax_table[,6] <- ps_species@tax_table[,6] %>% str_remove(".__")
+ps_species@tax_table[,7] <- ps_species@tax_table[,7] %>% str_remove(".__")
+
+relabund <- 
+ps_species %>% 
+  transform_sample_counts(ra)
+
+class_ra <- 
+ps_species %>% 
+  tax_glom("Class") %>% 
+  transform_sample_counts(ra)
+
+class_mat <- 
+class_ra@otu_table %>%
+  as("matrix")
+class_mat[is.nan(class_mat)] <- 0
+# class_ra@otu_table %>% View
+class_ra@otu_table[,which(class_mat %>% colMeans() >= 0.01)] %>% colnames()
+
+lowabund_asvs <- (class_ra@tax_table %>% rownames()) %ni% (class_ra@otu_table[,which(class_mat %>% colMeans() >= 0.01)] %>% colnames())
+
+class_ra@tax_table[lowabund_asvs,"Class"] <- "Other"
+
+
+class_ra@tax_table[,3] <- factor(class_ra@tax_table[,3],levels = c("Leotiomycetes","Dothideomycetes","Agaricomycetes" ,"Tremellomycetes","Other"))
+
+# reorder samples by dist from edge
+
+class_ra@sam_data$distance_from_edge <- 
+  factor(class_ra@sam_data$distance_from_edge,
+         levels = class_ra@sam_data %>% 
+           as("data.frame") %>% 
+           arrange(desc(distance_from_edge)) %>% 
+           pluck("seq_coast_tube_id"))
+
+
+# plot taxonomic breakdown
+class_ra %>% 
+  plot_bar2(fill="Class") +
+  # scale_x_discrete(limits = class_ra@sam_data %>% 
+  #                    as("data.frame") %>% 
+  #                    arrange(desc(distance_from_edge)) %>% 
+  #                    pluck("seq_coast_tube_id")) +
+  facet_wrap(~sample_type,scales = 'free') +
+  scale_fill_manual(values = c("#A00102","#6098a3","#c97724","#297a18","gray6"),
+                    labels = c("Leotiomycetes","Dothideomycetes","Agaricomycetes" ,"Tremellomycetes","Other")) +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        strip.text = element_text(face='bold',size=20),
+        legend.title = element_text(face='bold',size=20),
+        legend.text = element_text(face='bold',size=18),
+        axis.title = element_text(face='bold',size=20)) +
+  labs(y="Relative abundance")
+
+
+
+ggsave("./Output/figs/Figure_2.png",dpi=500,width = 12,height = 8)
+ps_species@sam_data$sample_type <- factor(ps_species@sam_data$sample_type, levels  = c("epiphyte","endophyte"))
+
+
+
+# make fig 1 - map
+
+# Load google maps API key from .Renviron 
+ggmap::register_google(key = Sys.getenv("APIKEY")) # Key kept private
+
+# customization
+mapstyle <- rjson::fromJSON(file = "./R/mapstyle.json") %>% # from JSON file exported from snazzymaps.com
+  googlemap_json_to_string(.)
+
+# data
+path <- "./Data/pando_sample_metadata_filled.csv"
+dat <- read_csv(path)
+
+latlon <- 
+  dat %>% 
+  select(tree,lon,lat) %>% 
+  filter(!is.na(lon) & !is.na(lat))
+
+# BUILD MAP ####
+area <- 
+  ggmap::get_googlemap(center = c(lon = mean(latlon$lon), 
+                                  lat = mean(latlon$lat)),
+                       zoom = 16,
+                       scale = 2,
+                       style=mapstyle)
+
+sam
+map_epi <- 
+  ggmap::ggmap(area) +
+  geom_point(data=sam %>% filter(sample_type == "epiphyte"),aes(x=lon,y=lat,text=tree,fill=asv_shannon),
+             size=4,alpha=.7,shape=24) +
+  scale_fill_viridis_c(option = 'rocket',begin = .2) +
+  labs(fill="Shannon\ndiversity",x="Longitude",y="Latitude",title = "Epiphyte") +
+  theme(legend.title = element_text(face='bold',size=14),
+        legend.text = element_text(face='bold',size=14),
+        axis.title = element_text(face='bold',size=16),
+        plot.title = element_text(face='bold',size=20,hjust = .5))
+map_epi
+
+map_endo <- 
+  ggmap::ggmap(area) +
+  geom_point(data=sam %>% filter(sample_type == "endophyte"),aes(x=lon,y=lat,text=tree,fill=asv_shannon),
+             size=4,alpha=.7,shape=24) +
+  scale_fill_viridis_c(option = 'rocket',begin = .2,end = .6) +
+  labs(fill="Shannon\ndiversity",x="Longitude",y="Latitude",title = "Endophyte") +
+  theme(legend.position = 'none') +
+  theme(legend.title = element_text(face='bold',size=14),
+        legend.text = element_text(face='bold',size=14),
+        axis.title = element_text(face='bold',size=16),
+        plot.title = element_text(face='bold',size=20,hjust = .5))
+
+
+map_epi + map_endo +
+  patchwork::plot_layout(guides='collect')
+ggsave("./Output/figs/Figure_1.png",dpi=500,width = 12,height = 6)
+
+ggmap::ggmap(area) +
+  geom_point(data=latlon,aes(x=lon,y=lat,text=tree),color='red',size=2,alpha=1,shape=4)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+library(corncob)
+da_analysis <- differentialTest(formula = ~ sample_type, #abundance
+                 phi.formula = ~ 1, #dispersion
+                 formula_null = ~ 1, #mean
+                 phi.formula_null = ~ 1,
+                 test = "Wald", boot = FALSE,
+                 data = ps_species,
+                 fdr_cutoff = 0.05,
+                 full_output = TRUE)
+
+plot(da_analysis)
+
+
+
+# da_analysis$significant_taxa[c(1,4)]
+# bbd1 <- bbdml(formula = GCATCGATGAAGAACGCAGCGAAATGCGATAAGTAATGTGAATTGCAGAATTCAGTGAATCATCGAATCTTTGAACGCACATTGCGCCCTTTGGCATTCCGAAGGGCATGCCTGTTCGAGCGTCATTACAACCACTCAAGCACTCGCTTGGCCTTGGGGCACCCGGCGTCGGGGCCCTCAAAACCAGCGGCGGTGCTCGTCAGCTCTACGCGTAGTAATACTCCTCGCGTCTGGCCCTGGCGAGCCACCGGCCGGCAACCCCCCACACTTCTCAGGTTGACCTCGGATCAGGTAGGGATA ~ sample_type,
+#       phi.formula = ~ 1, #dispersion
+#       formula_null = ~ 1, #mean
+#       phi.formula_null = ~ 1,
+#       test = "Wald", boot = FALSE,
+#       data = ps_species,
+#       fdr_cutoff = 0.05)
+# plot(bbd1,color = "sample_type")
+# 
+# bbd2 <- bbdml(formula = GCATCGATGAAGAACGCAGCGAAATGCGATAAGTAATGTGAATTGCAGAATTCAGTGAATCATCGAATCTTTGAACGCACCTTGCGCTCCTTGGTATTCCGAGGAGCATGCCCGTTTGAGTGTCTTGATATCATCAAACGCCCCTGCCTTTTCTGGTGGGTCGGCGATTTGGACTTGGACGTGCTGCTGGGCGCTCTGCGCTCGGCTCGTCTTGAATGCATTAGCTGGATCTCCCTCCGGCCTTGGACCTTATGGCGTGATAAGATCACCCGTCGAGCAGTCCTTGGTCAACGTTGGGTT ~ sample_type,
+#               phi.formula = ~ 1, #dispersion
+#               formula_null = ~ 1, #mean
+#               phi.formula_null = ~ 1,
+#               test = "Wald", boot = FALSE,
+#               data = ps_species,
+#               fdr_cutoff = 0.05)
+# plot(bbd2,color = "sample_type")
+
+library(fungaltraits); packageVersion("fungaltraits")
+# download traits metadata
+traits_meta <- read_csv("https://github.com/traitecoevo/fungaltraits/releases/download/v0.0.3/funtothefun.csv")
+
+# download FungalTraits database
+traits_db <- fungaltraits::fungal_traits()
+# match taxa at genus level
+genera <- ps_species@tax_table[,6] %>% str_remove("^g__")
+species <- ps_species@tax_table[,7] %>% str_remove("^s__")
+fungal_traits <- 
+  data.frame(Genus=genera) %>% 
+  mutate(species=paste(Genus,species,sep="_")) %>% 
+  left_join(traits_db,by=c("species","Genus"),multiple='all')
+
+fungal_traits[which(fungal_traits$Genus == "Cytospora"),]
+
+fungal_traits[!is.na(fungal_traits$guild_fg),]
