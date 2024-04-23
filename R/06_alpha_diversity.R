@@ -9,7 +9,9 @@ library(ggmap)
 library(zahntools)
 library(patchwork)
 options(scipen = 999)
-# functions
+sampletypecolors <- c("darkblue","#fca311")
+# functions ####
+
 add_alphadiv_measures <- function(physeq){
   # build species-level physeq
   ps_species <- 
@@ -106,10 +108,41 @@ sam %>%
 
   
 # plot alpha div
-ps %>% 
-  plot_richness(measures = c("Observed","Simpson","Shannon"),
-                color = "sample_type",sortby = "Observed")
+ps_melted <- 
+  psmelt(ps)
+ps_melted %>% names
 
+df <- 
+ps_melted %>% 
+  pivot_longer(c(spp_richness,spp_shannon),names_to = "alpha_div",values_to = "measure") %>% 
+  dplyr::select(alpha_div,measure,Sample,sample_type) %>% 
+  unique.data.frame()
+
+df$Sample <- factor(df$Sample,levels= df %>% 
+                      filter(alpha_div == "spp_richness") %>% 
+                      arrange(measure) %>% 
+                      pluck("Sample"))
+
+alpha_plot <- 
+df %>% 
+  mutate(alpha_div = case_when(alpha_div == "spp_richness" ~ "Richness",
+                               alpha_div == "spp_shannon" ~ "Shannon"),
+         sample_type = sample_type %>% str_to_sentence) %>% 
+  ggplot(aes(x=Sample,y=measure,color=sample_type)) +
+  geom_point(size=3,alpha=.75) +
+  facet_wrap(~alpha_div,scales='free') +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        legend.title = element_text(face='bold',size=16),
+        legend.text = element_text(face='bold',size=14),
+        axis.title = element_text(face='bold',size=16),
+        strip.text = element_text(face='bold',size=16),
+        strip.background = element_blank(),
+        axis.ticks.x = element_blank()) +
+  labs(color="Sample type",x="Samples",y="Diversity value") +
+  scale_color_manual(values=sampletypecolors)
+saveRDS(alpha_plot,"./Output/figs/alpha_plot.RDS")
+ggsave("./Output/figs/alpha_plot.png",dpi=300,height = 6,width = 6)
 
 ps_species@tax_table[,1] <- ps_species@tax_table[,1] %>% str_remove(".__")
 ps_species@tax_table[,2] <- ps_species@tax_table[,2] %>% str_remove(".__")
@@ -230,7 +263,7 @@ map_endo <-
         plot.title = element_text(face='bold',size=20,hjust = .5))
 
 
-map_epi + map_endo +
+map_endo + map_epi +
   patchwork::plot_layout(guides='collect')
 ggsave("./Output/figs/Figure_1.png",dpi=500,width = 12,height = 6)
 
