@@ -33,8 +33,13 @@ microbiome::meta(ps) %>%
   select(-c(sample,sample_type,fwd_filepath,rev_filepath)) 
 nested_df %>% 
   ggplot(aes(x=distance_from_edge,y=nestedness)) +
-  geom_point()
-
+  geom_point() +
+  theme_minimal() +
+  labs(x="Distance from edge (m)",y="Proportion of endophyte taxa\nnested within epipythe community") +
+  theme(axis.title = element_text(face='bold',size=14),
+        axis.text = element_text(face='bold',size=12)) +
+  geom_smooth(method="lm",se=FALSE,color='gray')
+ggsave("./Output/Figs/community_nestedness_vs_edge.png",height = 6,width = 6,dpi=300)
 nested_df %>% 
   glm(data=.,formula=nestedness~distance_from_edge) %>% 
   summary()
