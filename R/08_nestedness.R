@@ -24,7 +24,6 @@ for(i in ps@sam_data$tree){
   epi <- epi %>% subset_taxa(taxa_sums(epi) > 0)
   prop_nested[i] <- sum(taxa_names(endo) %in% taxa_names(epi)) / ntaxa(endo)
 }
-<<<<<<< HEAD
 dev.off()
 prop_nested %>% plot
 
