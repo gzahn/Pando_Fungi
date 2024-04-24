@@ -2,6 +2,7 @@ library(phyloseq)
 library(tidyverse)
 library(gdm)
 library(patchwork)
+library(segmented)
 set.seed(666)
 sampletypecolors <- c("darkblue","#fca311")
 
@@ -118,6 +119,19 @@ p2 <- isplines %>%
   labs(y="f(Geographic distance)",x="Geographic distance (m)",color="Sample type")
 
 p1 + p2 + plot_layout(guides='collect')
+
+
+# model breakpoint
+geo_mod <- 
+  glm(data= isplines %>% 
+        dplyr::filter(sample_type == "Endophyte"),
+      formula = dist_from_edge_partial ~ dist_from_edge_actual)
+
+my.seg <- segmented(geo_mod, 
+                    seg.Z = ~ dist_from_edge_actual, 
+                    psi = list(dist_from_edge_actual = c(100)))
+my.seg$psi
+
 
 ggsave("./Output/figs/Figure_4.png",dpi=300,height = 4,width = 10)
 ggsave("./Output/figs/Figure_4.tiff",dpi=300,height = 4,width = 10)
