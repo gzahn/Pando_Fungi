@@ -10,7 +10,6 @@
 #                     msa v 1.18.0
 #                     ape v 5.4
 #                     seqinr v 3.6.1
-<<<<<<< HEAD
 #                     phylogram v 2.1.0
 # -----------------------------------------------------------------------------#
 
@@ -27,7 +26,6 @@ library(tidyverse); packageVersion("tidyverse")
 library(phyloseq); packageVersion("phyloseq")
 library(vegan); packageVersion("vegan")
 library(phangorn); packageVersion("phangorn")
-<<<<<<< HEAD
 library(DECIPHER); packageVersion("DECIPHER")
 library(ape); packageVersion("ape")
 library(seqinr); packageVersion("seqinr")
@@ -42,44 +40,29 @@ sample_data(ps)
 
 # simplify ASV names
 seqs <- rownames(tax_table(ps))
-<<<<<<< HEAD
-# names(seqs) <- paste0("ASV_",1:length(seqs)) # This propagates to the tip labels of the tree
 names(seqs) <- seqs
+
 # Multiple sequence alignment  ####
-# alignment <- msa(seqs,method = "Muscle", type = "dna",verbose = TRUE,order = "input",maxiters = 10)
 alignment <- DECIPHER::AlignSeqs(DNAStringSet(seqs))
 # save progress 
 saveRDS(alignment,"./Output/ITS_dna_alignment_muscle.RDS")
 alignment <- readRDS("./Output/ITS_dna_alignment_muscle.RDS")
+
 # # Convert to phangorn format
-# phang.align = as.phyDat(as.character(alignment), type = "DNA")
+phang.align = as.phyDat(as.character(alignment), type = "DNA")
 
 # distance - maximum likelihood ####
-# dm <- dist.ml(phang.align)
 dist <- DistanceMatrix(alignment,type = "dist",correction="Jukes-Cantor", verbose=FALSE,processors = NULL)
-# distm <- DistanceMatrix(alignment,type = "matrix",correction="Jukes-Cantor", verbose=FALSE,processors = NULL)
 names(seqs) <- paste0("ASV_",1:length(seqs)) # This propagates to the tip labels of the tree
-
-# Multiple sequence alignment  ####
-alignment <- msa(seqs,method = "Muscle", type = "dna",verbose = TRUE,order = "input",maxiters = 10)
 
 # save progress 
 saveRDS(alignment,"./Output/ITS_dna_alignment_muscle.RDS")
 
-# Convert to phangorn format
-phang.align = as.phyDat(alignment, type = "DNA")
-
-# distance - maximum likelihood ####
-dm <- dist.ml(phang.align)
-
 #save
-saveRDS(dm,"./Output/ITS_ML_Distance.RDS")
+saveRDS(dist,"./Output/ITS_ML_Distance.RDS")
 
 # Initial neighbor-joining tree ####
-<<<<<<< HEAD
-# treeNJ_phangorn <- njs(dm) # Note, tip order != sequence order
 treeNJ <- TreeLine(myDistMatrix=dist, method="NJ", cutoff=0.05, showPlot=FALSE, verbose=FALSE)
-# treeNJm <- TreeLine(myDistMatrix=distm, method="NJ", cutoff=0.05, showPlot=FALSE, verbose=FALSE)
 
 # save progress
 saveRDS(treeNJ, "./Output/ITS_treeNJ.RDS")
@@ -87,32 +70,29 @@ treeNJ <- readRDS("./Output/ITS_treeNJ.RDS")
 
 phylogram::as.phylo(treeNJ)
 tree <- phylogram::as.phylo(treeNJ)
-tree$tip.label
-
-taxa_names(ps)
-treeNJ <- NJ(dm) # Note, tip order != sequence order
+tree$tip.label %>% summary
+taxa_names(ps) %>% summary
 
 # save progress
-saveRDS(treeNJ, "./Output/ITS_treeNJ.RDS")
-
-# Estimate model parameters ####
-fit = pml(treeNJ, data=phang.align)
-
-#save
-saveRDS(fit,"./Output/ITS_fit_treeNJ.RDS")
+saveRDS(tree, "./Output/ITS_treeNJ.RDS")
 
 
-fit$tree$tip.label <- seqs
 
 # add tree to phyloseq object ####
 ps2 <- phyloseq(tax_table(tax_table(ps)),
                 otu_table(otu_table(ps)),
                 sample_data(sample_data(ps)),
-<<<<<<< HEAD
                 phy_tree(tree))
 
+plot_tree(ps2,color="Phylum")
 
-                phy_tree(fit$tree))
+# further cleanup of taxa and samples
+ps2 <- 
+  ps2 %>% 
+  subset_taxa(Phylum != "NA")
+ps2 <- 
+  ps2 %>% 
+  subset_samples(sample_sums(ps2) > 1)
 
 
 # Save updated phyloseq object with tree

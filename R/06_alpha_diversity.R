@@ -8,52 +8,18 @@ library(broom)
 library(ggmap)
 library(zahntools)
 library(patchwork)
+library(purrr)
 options(scipen = 999)
 sampletypecolors <- c("darkblue","#fca311")
-# functions ####
+source("./R/functions.R")
 
-add_alphadiv_measures <- function(physeq){
-  # build species-level physeq
-  ps_species <- 
-    tax_glom(physeq,"Species")
-  
-  alpha_asv <- estimate_richness(physeq,measures = c("Observed","Shannon","Simpson"))
-  alpha_spp <- estimate_richness(ps_species,measures = c("Observed","Shannon","Simpson"))
-  
-  # add to sample metadata
-  physeq@sam_data$asv_richness <- alpha_asv$Observed
-  physeq@sam_data$asv_shannon <- alpha_asv$Shannon
-  physeq@sam_data$asv_simpson <- alpha_asv$Observed
-  
-  # build species-level physeq
-  ps_species <- 
-    tax_glom(physeq,"Species")
-  
-  alpha_asv <- estimate_richness(physeq,measures = c("Observed","Shannon","Simpson"))
-  alpha_spp <- estimate_richness(ps_species,measures = c("Observed","Shannon","Simpson"))
-  
-  # add to sample metadata
-  physeq@sam_data$asv_richness <- alpha_asv$Observed
-  physeq@sam_data$asv_shannon <- alpha_asv$Shannon
-  physeq@sam_data$asv_simpson <- alpha_asv$Observed
-  
-  physeq@sam_data$spp_richness <- alpha_spp$Observed
-  physeq@sam_data$spp_shannon <- alpha_spp$Shannon
-  physeq@sam_data$spp_simpson <- alpha_spp$Observed
-  
-  return(physeq)
-}
 
-ra <- function(x){x/sum(x)}
-
-'%ni%' <- Negate('%in%')
-
-## data ####
+# DATA ####
 # asv-level physeq
 ps <- readRDS("./Output/ps_cleaned_w_tree.RDS")
 # species-level physeq
 ps_species <- 
-  tax_glom(ps,"Species")
+  tax_glom(ps,"Species",NArm = FALSE)
 
 
 # richness
@@ -73,23 +39,23 @@ sam <- ps@sam_data %>% as("data.frame")
 glm(data=sam,formula = distance_from_edge ~ sample_type) %>% 
   summary
 
-m1 <- glm(data=sam,formula = asv_richness ~ sample_type * distance_from_edge) %>% 
+m1 <- glm(data=sam,formula = asv_richness ~ sample_type * distance_from_edge * factor(collection_round)) %>% 
   tidy() %>% mutate(outcome = "asv_richness")
-m2 <- glm(data=sam,formula = asv_shannon ~ sample_type * distance_from_edge) %>% 
+m2 <- glm(data=sam,formula = asv_shannon ~ sample_type * distance_from_edge * factor(collection_round)) %>% 
   tidy() %>% mutate(outcome = "asv_shannon")
-m3 <- glm(data=sam,formula = asv_simpson ~ sample_type * distance_from_edge) %>% 
+m3 <- glm(data=sam,formula = asv_simpson ~ sample_type * distance_from_edge * factor(collection_round)) %>% 
   tidy() %>% mutate(outcome = "asv_simpson")
-m4 <- glm(data=sam,formula = spp_richness ~ sample_type * distance_from_edge) %>% 
+m4 <- glm(data=sam,formula = spp_richness ~ sample_type * distance_from_edge * factor(collection_round)) %>% 
   tidy() %>% mutate(outcome = "spp_richness")
-m5 <- glm(data=sam,formula = spp_shannon ~ sample_type * distance_from_edge) %>% 
+m5 <- glm(data=sam,formula = spp_shannon ~ sample_type * distance_from_edge * factor(collection_round)) %>% 
   tidy() %>% mutate(outcome = "spp_shannon")
-m6 <- glm(data=sam,formula = spp_simpson ~ sample_type * distance_from_edge) %>% 
+m6 <- glm(data=sam,formula = spp_simpson ~ sample_type * distance_from_edge * factor(collection_round)) %>% 
   tidy() %>% mutate(outcome = "spp_simpson")
 
 mod_tab <- list(m1,m2,m3,m4,m5,m6) %>% 
-  reduce(full_join) %>% 
+  purrr::reduce(full_join) %>% 
   filter(term != "(Intercept)") %>% 
-  mutate(term = term %>% str_remove("sample_type"))
+  mutate(term = term %>% str_remove("sample_type") %>% str_remove("factor\\(collection_round\\)"))
 saveRDS(mod_tab,"./Output/alpha_div_models.RDS")
 
 
@@ -115,7 +81,7 @@ ps_melted %>% names
 df <- 
 ps_melted %>% 
   pivot_longer(c(spp_richness,spp_shannon),names_to = "alpha_div",values_to = "measure") %>% 
-  dplyr::select(alpha_div,measure,Sample,sample_type) %>% 
+  dplyr::select(alpha_div,measure,Sample,sample_type,collection_round) %>% 
   unique.data.frame()
 
 df$Sample <- factor(df$Sample,levels= df %>% 
@@ -144,13 +110,6 @@ df %>%
 saveRDS(alpha_plot,"./Output/figs/alpha_plot.RDS")
 ggsave("./Output/figs/alpha_plot.png",dpi=300,height = 6,width = 6)
 
-ps_species@tax_table[,1] <- ps_species@tax_table[,1] %>% str_remove(".__")
-ps_species@tax_table[,2] <- ps_species@tax_table[,2] %>% str_remove(".__")
-ps_species@tax_table[,3] <- ps_species@tax_table[,3] %>% str_remove(".__")
-ps_species@tax_table[,4] <- ps_species@tax_table[,4] %>% str_remove(".__")
-ps_species@tax_table[,5] <- ps_species@tax_table[,5] %>% str_remove(".__")
-ps_species@tax_table[,6] <- ps_species@tax_table[,6] %>% str_remove(".__")
-ps_species@tax_table[,7] <- ps_species@tax_table[,7] %>% str_remove(".__")
 
 relabund <- 
 ps_species %>% 
@@ -184,8 +143,10 @@ class_ra@sam_data$distance_from_edge <-
            arrange(desc(distance_from_edge)) %>% 
            pluck("seq_coast_tube_id"))
 
-
+class_ra@sam_data$sample_type <- class_ra@sam_data$sample_type %>% str_to_sentence()
 # plot taxonomic breakdown
+
+## Figure 2 ####
 class_ra %>% 
   plot_bar2(fill="Class") +
   # scale_x_discrete(limits = class_ra@sam_data %>% 
@@ -201,14 +162,97 @@ class_ra %>%
         strip.text = element_text(face='bold',size=20),
         legend.title = element_text(face='bold',size=20),
         legend.text = element_text(face='bold',size=18),
-        axis.title = element_text(face='bold',size=20)) +
+        axis.title = element_text(face='bold',size=20),
+        strip.background = element_rect(fill="white")) +
   labs(y="Relative abundance")
 
 
 
 ggsave("./Output/figs/Figure_2.png",dpi=500,width = 12,height = 8)
-ps_species@sam_data$sample_type <- factor(ps_species@sam_data$sample_type, levels  = c("epiphyte","endophyte"))
+ps_species@sam_data$sample_type <- factor(ps_species@sam_data$sample_type, levels  = c("Epiphyte","Endophyte"))
 
+
+genus_ra <- 
+  ps_species %>% 
+  tax_glom("Genus") %>% 
+  transform_sample_counts(ra)
+
+genus_mat <- 
+  genus_ra@otu_table %>%
+  as("matrix")
+genus_mat[is.nan(genus_mat)] <- 0
+# genus_ra@otu_table %>% View
+genus_ra@otu_table[,which(genus_mat %>% colMeans() >= 0.01)] %>% colnames()
+
+lowabund_asvs <- (genus_ra@tax_table %>% rownames()) %ni% (genus_ra@otu_table[,which(genus_mat %>% colMeans() >= 0.01)] %>% colnames())
+
+genus_ra@tax_table[lowabund_asvs,"Genus"] <- "Other"
+
+
+genus_ra@tax_table[,6] %>% unique %>% unname()
+# genus_ra@tax_table[,6] <- factor(genus_ra@tax_table[,6],
+#                                  levels = c("Aureobasidium","Cladosporium",
+#                                             "Drepanopeziza","Endoconidioma",
+#                                             "Filobasidium","Pleospora",
+#                                             "Preussia","Sporormiella",
+#                                             "Vishniacozyma","Other"))
+
+# genus_ra@sam_data$distance_from_edge <- 
+#   factor(genus_ra@sam_data$distance_from_edge,
+#          levels = genus_ra@sam_data %>% 
+#            as("data.frame") %>% 
+#            arrange(desc(distance_from_edge)) %>% 
+#            pluck("seq_coast_tube_id"))
+
+genus_ra@sam_data$sample_type <- genus_ra@sam_data$sample_type %>% str_to_sentence()
+
+genus_melt <- psmelt(genus_ra)
+genus_summary <- genus_melt %>% 
+  group_by(sample_type,Genus) %>% 
+  dplyr::summarise(mean_relabund = mean(Abundance,na.rm=TRUE),
+                   sd_relabund = sd(Abundance,na.rm=TRUE),
+                   upper = mean_relabund + sd_relabund,
+                   lower = mean_relabund - sd_relabund) %>% 
+  arrange((mean_relabund))
+
+genus_order <- 
+genus_melt %>% 
+  group_by(Genus) %>% 
+  dplyr::summarise(mean_relabund = mean(Abundance,na.rm=TRUE)) %>% 
+  arrange((mean_relabund)) %>% 
+  pluck("Genus")
+p <-   
+genus_summary %>% 
+dplyr::mutate(Genus = factor(Genus,genus_order)) %>% 
+  ggplot(aes(x=Genus,y=mean_relabund)) +
+  geom_col(fill=rep(sampletypecolors,
+                    each=nrow(genus_summary)/length(unique(genus_summary$sample_type)))) +
+  geom_segment(aes(xend=Genus,yend=upper)) +
+  facet_wrap(~sample_type) +
+  labs(y="Mean relative abundance") +
+  theme_bw() +
+  theme(axis.ticks.x = element_blank(),
+        strip.text = element_text(face='bold',size=20),
+        legend.title = element_text(face='bold',size=20),
+        legend.text = element_text(face='bold',size=18),
+        axis.title = element_text(face='bold',size=20),
+        strip.background = element_rect(fill="white")) +
+  coord_flip() +
+  theme(axis.text.y = element_text(face='bold.italic',size=18,hjust=1,vjust=.5),
+        axis.text.x = element_text(face='bold',size=14))
+p
+ggsave("./Output/figs/Figure_2_b.tiff",height = 4,width = 10,dpi=400)
+
+epi_trees <- genus_melt %>% 
+  dplyr::filter(sample_type == "Epiphyte") %>% 
+  pluck("tree") %>% unique
+
+end_trees <- genus_melt %>% 
+  dplyr::filter(sample_type == "Endophyte") %>% 
+  pluck("tree") %>% unique
+
+# how many endophyte samples were lost?
+which(epi_trees %ni% end_trees) %>% length
 
 
 # make fig 1 - map
@@ -230,6 +274,7 @@ latlon <-
   filter(!is.na(lon) & !is.na(lat))
 
 # BUILD MAP ####
+## Figure 1 ####
 area <- 
   ggmap::get_googlemap(center = c(lon = mean(latlon$lon), 
                                   lat = mean(latlon$lat)),
@@ -281,7 +326,7 @@ ggmap::ggmap(area) +
 
 
 
-
+# DIFF ABUND ####
 
 library(corncob)
 da_analysis <- differentialTest(formula = ~ sample_type, #abundance
@@ -315,6 +360,9 @@ plot(da_analysis)
 #               data = ps_species,
 #               fdr_cutoff = 0.05)
 # plot(bbd2,color = "sample_type")
+
+
+# FUNGAL TRAITS ####
 
 library(fungaltraits); packageVersion("fungaltraits")
 # download traits metadata

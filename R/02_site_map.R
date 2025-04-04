@@ -16,7 +16,7 @@ mapstyle <- rjson::fromJSON(file = "./R/mapstyle.json") %>% # from JSON file exp
   googlemap_json_to_string(.)
 
 # data
-path <- "./Data/pando_sample_metadata_filled.csv"
+path <- "./Data/Combined_Metadata_2025.csv"
 dat <- read_csv(path)
 
 latlon <- 

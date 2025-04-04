@@ -27,6 +27,5 @@ uc_table_list <- iterative_cluster(seqs, startlvl=startlvl_ex, finallvl=finallvl
 
 # transform list of clustering tables into a tree
 gtree <- make_garbage_tree(uc_table_list, interval=interval_ex)
-
 # write tree to file
 write.tree(gtree, file="garbagetree_fungi.nwk")

@@ -26,11 +26,11 @@ endo <-
 endo <- psmelt(endo)
 # biological data
 # get columns with xy, site ID, and species data
-sppTab_epi <- epi %>% select(OTU,tree,lon,lat,Abundance)
-sppTab_endo <- endo %>% select(OTU,tree,lon,lat,Abundance)
+sppTab_epi <- epi %>% dplyr::select(OTU,tree,lon,lat,Abundance)
+sppTab_endo <- endo %>% dplyr::select(OTU,tree,lon,lat,Abundance)
 # get columns with site ID, env. data, and xy-coordinates
-envTab_epi <- epi %>% select(tree, lon, lat, distance_from_edge)
-envTab_endo <- endo %>% select(tree, lon, lat, distance_from_edge)
+envTab_epi <- epi %>% dplyr::select(tree, lon, lat, distance_from_edge)
+envTab_endo <- endo %>% dplyr::select(tree, lon, lat, distance_from_edge)
 # format for gdm
 gdmTab_epi <- formatsitepair(bioData=sppTab_epi, 
                              bioFormat=2, #x-y spp list
@@ -58,8 +58,8 @@ gdm_endo <- gdm(data = gdmTab_endo,geo = TRUE)
 summary(gdm_epi)
 summary(gdm_endo)
 
-plot(gdm_epi)
-plot(gdm_endo)
+# plot(gdm_epi)
+# plot(gdm_endo)
 
 # predictions from model (using same distances)
 gdm_epi_pred <- predict(object=gdm_epi, data=gdmTab_epi)

@@ -4,6 +4,8 @@ library(vegan)
 library(tidyverse)
 library(patchwork)
 sampletypecolors <- c("darkblue","#fca311")
+set.seed(666)
+
 
 # data ####
 ps <- readRDS("./Output/ps_cleaned_w_tree.RDS")
@@ -26,8 +28,8 @@ ggsave("./Output/figs/ordination_plot_sampletype.png",dpi=300,height = 6,width =
 # plot_ordination(ps,ord,color="distance_from_edge")
 
 # Permutational ANOVA
-adonis2(ps_ra@otu_table ~ ps_ra@sam_data$sample_type + ps_ra@sam_data$distance_from_edge)
-
+mod <- adonis2(ps_ra@otu_table ~ ps_ra@sam_data$sample_type + ps_ra@sam_data$distance_from_edge)
+mod
 # OUTCOME ~ PREDICTORS
 
 
