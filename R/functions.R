@@ -789,3 +789,46 @@ add_alphadiv_measures <- function(physeq){
 ra <- function(x){x/sum(x)}
 
 '%ni%' <- Negate('%in%')
+
+assignTaxonomy_sequentially <- function(seqtab,
+                                        refFasta,
+                                        n.parts = ceiling(ncol(seqtab) / 3000),
+                                        multithread = TRUE,
+                                        tryRC = TRUE,
+                                        verbose = TRUE){
+  
+  if(n.parts > 1){
+    # get indexes for n.parts
+    indices <- 1:ncol(seqtab)
+    index.list <- split(indices,cut(indices,n.parts))
+    
+    tax <- list()
+    x <- 1
+    for(i in index.list){
+      tax[[x]] <- assignTaxonomy(seqtab[,i],
+                                 refFasta = refFasta,
+                                 multithread = multithread,
+                                 tryRC = tryRC,
+                                 verbose = verbose)
+      x <- x+1
+    }
+    # stick together
+    tax_flat <- purrr::reduce(tax,rbind)
+    # reorder to ensure matches to seqtab
+    tax_flat <- tax_flat[colnames(seqtab.nochim),]
+    
+    return(tax_flat)
+  }
+  
+  # if n.parts < 2, do something else....
+  if(n.parts < 2){
+    warning("Number of parts is less than 2, running default assignTaxonomy instead...")
+    tax <- assignTaxonomy(seqtab,
+                          refFasta = refFasta,
+                          multithread = multithread,
+                          tryRC = tryRC,
+                          verbose = verbose)
+    return(tax)
+  }
+  
+}

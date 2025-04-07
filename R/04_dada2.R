@@ -50,7 +50,7 @@ fns <- sort(list.files(file.path(path), full.names = TRUE, pattern = "cutadapt_f
 sample.ids <- basename(fns) %>%  str_remove("_cutadapt_fwd.fastq.gz")
 meta <- read_csv("./Data/Combined_Metadata_2025.csv")
 row.names(meta) <- as.character(meta$sample)
-sample.names <- meta[sample.ids,"sample"]
+sample.names <- meta[sample.ids,] %>% pluck("sample")
 
 # some files may not have corresponding metadata for some reason!?
 goodsamples <- which(!is.na(sample.names))
@@ -63,7 +63,7 @@ fns <- fns[goodsamples]
 # visualize a couple of fwd read quality profiles to help select reasonable filtration parameters
 # you can select any number of files here...
 # as-is, this just shows the Fwd and Rev quality profiles for the 1st and 2nd files
-p1 <- plotQualityProfile(fns[11]) + ggtitle("Example forward reads")
+p1 <- plotQualityProfile(fns[c(11,370)]) + ggtitle("Example forward reads")
 
 # display and save the plots
 p1
@@ -90,11 +90,10 @@ out <- filterAndTrim(fns, filts_f, # input and output file names as denoted abov
 
 remaining_samples <- which(out[,2] >= 1000)
 meta <- meta[remaining_samples,]
-write_csv(meta,"./Data/Combined_Metadata_2025_remaining_samples.csv")
+read_csv(meta,"./Data/Combined_Metadata_2025_remaining_samples.csv")
 
 # save the filtration info in case we need it later
 saveRDS(out, "./Output/trackreads.RDS")
-
 list.files(filtpath, full.names = TRUE)
 # In case some samples may have had zero reads pass QC, reassign filts
 filts_f <- sort(list.files(filtpath, full.names = TRUE,pattern = "FWD"))
@@ -108,69 +107,95 @@ filts_f <- filts_f[!missed_cutoff]
 
 
 # sanity check  comparison of before and after filtration
-p3 <- plotQualityProfile(fns[1]) + ggtitle("Unfiltered")
-p4 <- plotQualityProfile(filts_f[1])+ ggtitle("Filtered")
+p3 <- plotQualityProfile(fns[9]) + ggtitle("Unfiltered")
+p4 <- plotQualityProfile(filts_f[9])+ ggtitle("Filtered")
 p3 / p4
 ggsave("./Output/Figs/filtered_quality_comparison.png",dpi=300,height = 6,width = 6)
 
-
-
+# subset each sequencing run to do dada2 separately
+filts_f
+filts_f_2023 <- paste0("./Data/Clean/filtered/",meta$sample[meta$collection_round==2023],"_FWD_filt.fastq.gz")
+filts_f_2024 <- paste0("./Data/Clean/filtered/",meta$sample[meta$collection_round==2024],"_FWD_filt.fastq.gz")
 
 # LEARN ERROR RATES ####
 
 # learn errors
-errF <- learnErrors(filts_f, multithread=parallel::detectCores()-1, MAX_CONSIST = 20,verbose = 2,randomize = TRUE) # set multithread = FALSE on Windows
-saveRDS(errF,"./Output/errF.RDS")
-errF <- readRDS("./Output/errF.RDS")
+errF_2023 <- learnErrors(filts_f_2023, multithread=parallel::detectCores()-1, MAX_CONSIST = 20,verbose = 2,randomize = TRUE) # set multithread = FALSE on Windows
+saveRDS(errF_2023,"./Output/errF_2023.RDS")
+errF_2023 <- readRDS("./Output/errF_2023.RDS")
+errF_2024 <- learnErrors(filts_f_2024, multithread=parallel::detectCores()-1, MAX_CONSIST = 20,verbose = 2,randomize = TRUE) # set multithread = FALSE on Windows
+saveRDS(errF_2024,"./Output/errF_2024.RDS")
+errF_2024 <- readRDS("./Output/errF_2024.RDS")
 
 # sanity check for error model
 # explain what to look for in the plot! 
-plotErrors(errF, nominalQ=FALSE)
-ggsave("./Output/figs/error_model.png",dpi=200,height = 6,width = 6)
+plotErrors(errF_2023, nominalQ=FALSE)
+ggsave("./Output/figs/error_model_2023.png",dpi=200,height = 6,width = 6)
+plotErrors(errF_2024, nominalQ=FALSE)
+ggsave("./Output/figs/error_model_2024.png",dpi=200,height = 6,width = 6)
 
 # dereplication
-derepF <- derepFastq(filts_f, verbose=TRUE)
+derepF_2023 <- derepFastq(filts_f_2023, verbose=TRUE)
+derepF_2024 <- derepFastq(filts_f_2024, verbose=TRUE)
 
 # Name the derep-class objects by the sample names
-names(derepF) <- 
-  names(derepF) %>% 
+names(derepF_2023) <- 
+  names(derepF_2023) %>% 
   str_remove("_FWD_filt.fastq.gz")
-saveRDS(derepF,"./Output/derepF.RDS")
-# derepF <- readRDS("./Output/derepF.RDS")
+saveRDS(derepF_2023,"./Output/derepF_2023.RDS")
+names(derepF_2024) <- 
+  names(derepF_2024) %>% 
+  str_remove("_FWD_filt.fastq.gz")
+saveRDS(derepF_2024,"./Output/derepF_2024.RDS")
 
 # SAMPLE INFERRENCE ####
-dadaFs <- dada(derepF, err=errF, multithread=TRUE, selfConsist = FALSE, verbose=TRUE)
-saveRDS(dadaFs,"Output/dadaFs.RDS") 
+dadaFs_2023 <- dada(derepF_2023, err=errF_2023, multithread=TRUE, selfConsist = FALSE, verbose=TRUE)
+saveRDS(dadaFs_2023,"Output/dadaFs_2023.RDS") 
+dadaFs_2024 <- dada(derepF_2024, err=errF_2024, multithread=TRUE, selfConsist = FALSE, verbose=TRUE)
+saveRDS(dadaFs_2024,"Output/dadaFs_2024.RDS") 
 
 # if dada worked and was saved properly, remove giant derep
-if(file.exists("Output/dadaFs.RDS") & (length(derepF) > 1)){
-  rm(derepF)
-  file.remove("./Output/derepF.RDS")
+if(file.exists("Output/dadaFs_2023.RDS") & (length(derepF_2023) > 1)){
+  rm(derepF_2023)
+  file.remove("./Output/derepF_2023.RDS")
 }
-  
+if(file.exists("Output/dadaFs_2024.RDS") & (length(derepF_2024) > 1)){
+  rm(derepF_2024)
+  file.remove("./Output/derepF_2024.RDS")
+}
+
 # MAKE SEQUENCE TABLE ####
-seqtab <- makeSequenceTable(dadaFs)
+seqtab_2023 <- makeSequenceTable(dadaFs_2023)
+seqtab_2024 <- makeSequenceTable(dadaFs_2024)
+row.names(seqtab_2023) %in% row.names(seqtab_2024)
+
+# merge ASV tables
+seqtab <- mergeSequenceTables(seqtab_2023,seqtab_2024)
 
 # REMOVE CHIMERAS ####
 seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE, verbose=TRUE)
 saveRDS(seqtab.nochim,"./Output/seqtab.nochim.RDS")
 dim(seqtab.nochim)
 sum(seqtab.nochim)/sum(seqtab)
+# seqtab.nochim_2024 <- removeBimeraDenovo(seqtab_2024, method="consensus", multithread=TRUE, verbose=TRUE)
+# saveRDS(seqtab.nochim_2024,"./Output/seqtab.nochim_2024.RDS")
+# dim(seqtab.nochim_2024)
+# sum(seqtab.nochim_2024)/sum(seqtab_2024)
 
-# reassign "out" to remove any missing reads
-out = out[as.data.frame(out)$reads.out > 0,]
-
-# TRACK READS THROUGH PIPELINE ####
-getN <- function(x) sum(getUniques(x))
-track <- cbind(out, sapply(dadaFs, getN), rowSums(seqtab.nochim))
-# If processing a single sample, remove the sapply calls: e.g. replace sapply(dadaFs, getN) with getN(dadaFs)
-colnames(track) <- c("input", "filtered", "denoisedF","nonchim")
-rownames(track) <- sample.names
-track = as.data.frame(track)
-track$total.loss.proportion = (track[,1]-track$nonchim)/track[,1]
-head(track)
-
-write.csv(track, file = "./Output/ITS_read_counts_at_each_step.csv", row.names = TRUE)
+# # reassign "out" to remove any missing reads
+# out = out[as.data.frame(out)$reads.out > 0,]
+# 
+# # TRACK READS THROUGH PIPELINE ####
+# getN <- function(x) sum(getUniques(x))
+# track <- cbind(out, sapply(dadaFs, getN), rowSums(seqtab.nochim))
+# # If processing a single sample, remove the sapply calls: e.g. replace sapply(dadaFs, getN) with getN(dadaFs)
+# colnames(track) <- c("input", "filtered", "denoisedF","nonchim")
+# rownames(track) <- sample.names
+# track = as.data.frame(track)
+# track$total.loss.proportion = (track[,1]-track$nonchim)/track[,1]
+# head(track)
+# 
+# write.csv(track, file = "./Output/ITS_read_counts_at_each_step.csv", row.names = TRUE)
 
 
 # Remove all seqs with fewer than 100 nucleotides (if any) ####
@@ -204,13 +229,20 @@ dim(meta)
 # reload point
 saveRDS(seqtab.nochim,"./Output/seqtab_for_taxonomy.RDS")
 seqtab.nochim <- readRDS("./Output/seqtab_for_taxonomy.RDS")
+meta <- meta[meta$sample %in% row.names(seqtab.nochim),]
+
 
 # ASSIGN TAXONOMY ####
-tax <- assignTaxonomy(seqtab.nochim,
-                      refFasta = "./Taxonomy/Eukaryome_General_ITS_v1.8_reformatted.fasta.gz",
-                      multithread = TRUE,
-                      tryRC = FALSE,
-                      verbose = TRUE)
+tax <- assignTaxonomy_sequentially(seqtab.nochim,
+                            refFasta = "./Taxonomy/DADA2_EUK_ITS_v1.9.4.fasta.gz",
+                            tryRC = FALSE,
+                            verbose = TRUE,
+                            multithread = TRUE)
+# tax <- assignTaxonomy(seqtab.nochim,
+#                       refFasta = "./Taxonomy/DADA2_EUK_ITS_v1.9.4.fasta.gz",
+#                       multithread = TRUE,
+#                       tryRC = FALSE,
+#                       verbose = TRUE)
 tax
 beepr::beep(sound=2)
 saveRDS(tax,"./Output/sequence_taxonomy.RDS")
@@ -235,7 +267,7 @@ saveRDS(ps,"./Output/phyloseq_object_not-cleaned.RDS")
 
 # clean up physeq
 ps <- 
-  pd %>% 
+  ps %>% 
   clean_ps_taxonomy() %>% 
   subset_taxa(Kingdom == "Fungi")
 ps <- 
@@ -244,4 +276,10 @@ ps <-
 ps <- 
   ps %>% 
   subset_samples(sample_sums(ps) >= 100)
+ps@sam_data %>% View
+
 saveRDS(ps,"./Output/clean_phyloseq_object.RDS")
+
+# make "melted" version for export as well
+melt <- psmelt(ps)
+saveRDS(melt,"./Output/clean_phyloseq_melted_df.RDS")

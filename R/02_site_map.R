@@ -17,11 +17,12 @@ mapstyle <- rjson::fromJSON(file = "./R/mapstyle.json") %>% # from JSON file exp
 
 # data
 path <- "./Data/Combined_Metadata_2025.csv"
-dat <- read_csv(path)
+dat <- read_csv(path) %>% 
+  mutate(year = factor(collection_round))
 
 latlon <- 
 dat %>% 
-  select(tree,lon,lat) %>% 
+  select(tree,lon,lat,year) %>% 
   filter(!is.na(lon) & !is.na(lat))
 
 # BUILD MAP ####
@@ -33,7 +34,8 @@ area <-
                        style=mapstyle)
 map <- 
 ggmap::ggmap(area) +
-  geom_point(data=latlon,aes(x=lon,y=lat,text=tree),color='red',size=2,alpha=1,shape=4)
+  geom_point(data=latlon,aes(x=lon,y=lat,text=tree,color=year),size=2,alpha=1,shape=4) +
+  scale_color_manual(values=c("red","black"))
 map
 
 plotly::ggplotly(map)
