@@ -154,7 +154,7 @@ saveRDS(dadaFs_2023,"Output/dadaFs_2023.RDS")
 dadaFs_2024 <- dada(derepF_2024, err=errF_2024, multithread=TRUE, selfConsist = FALSE, verbose=TRUE)
 saveRDS(dadaFs_2024,"Output/dadaFs_2024.RDS") 
 
-# if dada worked and was saved properly, remove giant derep
+# if dada worked and was saved properly, remove giant derep objects and files if successful
 if(file.exists("Output/dadaFs_2023.RDS") & (length(derepF_2023) > 1)){
   rm(derepF_2023)
   file.remove("./Output/derepF_2023.RDS")
@@ -177,25 +177,22 @@ seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE
 saveRDS(seqtab.nochim,"./Output/seqtab.nochim.RDS")
 dim(seqtab.nochim)
 sum(seqtab.nochim)/sum(seqtab)
-# seqtab.nochim_2024 <- removeBimeraDenovo(seqtab_2024, method="consensus", multithread=TRUE, verbose=TRUE)
-# saveRDS(seqtab.nochim_2024,"./Output/seqtab.nochim_2024.RDS")
-# dim(seqtab.nochim_2024)
-# sum(seqtab.nochim_2024)/sum(seqtab_2024)
 
-# # reassign "out" to remove any missing reads
-# out = out[as.data.frame(out)$reads.out > 0,]
-# 
-# # TRACK READS THROUGH PIPELINE ####
-# getN <- function(x) sum(getUniques(x))
-# track <- cbind(out, sapply(dadaFs, getN), rowSums(seqtab.nochim))
-# # If processing a single sample, remove the sapply calls: e.g. replace sapply(dadaFs, getN) with getN(dadaFs)
-# colnames(track) <- c("input", "filtered", "denoisedF","nonchim")
-# rownames(track) <- sample.names
-# track = as.data.frame(track)
-# track$total.loss.proportion = (track[,1]-track$nonchim)/track[,1]
-# head(track)
-# 
-# write.csv(track, file = "./Output/ITS_read_counts_at_each_step.csv", row.names = TRUE)
+
+# reassign "out" to remove any missing reads
+out = out[as.data.frame(out)$reads.out > 0,]
+
+# TRACK READS THROUGH PIPELINE ####
+getN <- function(x) sum(getUniques(x))
+track <- cbind(out, sapply(dadaFs, getN), rowSums(seqtab.nochim))
+# If processing a single sample, remove the sapply calls: e.g. replace sapply(dadaFs, getN) with getN(dadaFs)
+colnames(track) <- c("input", "filtered", "denoisedF","nonchim")
+rownames(track) <- sample.names
+track = as.data.frame(track)
+track$total.loss.proportion = (track[,1]-track$nonchim)/track[,1]
+head(track)
+
+write.csv(track, file = "./Output/ITS_read_counts_at_each_step.csv", row.names = TRUE)
 
 
 # Remove all seqs with fewer than 100 nucleotides (if any) ####
@@ -233,18 +230,12 @@ meta <- meta[meta$sample %in% row.names(seqtab.nochim),]
 
 
 # ASSIGN TAXONOMY ####
-tax <- assignTaxonomy_sequentially(seqtab.nochim,
-                            refFasta = "./Taxonomy/DADA2_EUK_ITS_v1.9.4.fasta.gz",
-                            tryRC = FALSE,
-                            verbose = TRUE,
-                            multithread = TRUE)
-# tax <- assignTaxonomy(seqtab.nochim,
-#                       refFasta = "./Taxonomy/DADA2_EUK_ITS_v1.9.4.fasta.gz",
-#                       multithread = TRUE,
-#                       tryRC = FALSE,
-#                       verbose = TRUE)
-tax
-beepr::beep(sound=2)
+tax <- assignTaxonomy(seqtab.nochim,
+                      refFasta = "./Taxonomy/DADA2_EUK_ITS_v1.9.4.fasta.gz",
+                      multithread = TRUE,
+                      tryRC = FALSE,
+                      verbose = TRUE)
+
 saveRDS(tax,"./Output/sequence_taxonomy.RDS")
 tax <- readRDS("./Output/sequence_taxonomy.RDS")
 dim(seqtab.nochim)

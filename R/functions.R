@@ -290,7 +290,7 @@ run_itsxpress <- function(directory="./data/raw/cutadapt", # where cutadapted re
                           " --log ",outs_fwd[i],".log",
                           " --single_end")
       # write commands to file
-      sink("./R/itsxpress_commands_run6.sh",append = TRUE)
+      sink("./R/itsxpress_commands.sh",append = TRUE)
       cat(itsxpress,"\n")
       sink(NULL)
       

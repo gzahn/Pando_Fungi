@@ -6,11 +6,11 @@ library(segmented)
 set.seed(666)
 sampletypecolors <- c("darkblue","#fca311")
 
-fung <- readRDS("./Output/ps_cleaned_w_tree.RDS")
+fung <- readRDS("./Output/clean_phyloseq_object.RDS")
 # extract species by site info
 epi <- 
   fung %>% 
-  subset_samples(sample_type == "epiphyte")
+  subset_samples(sample_type == "epiphyte" & seq_date == 2023)
 epi <- 
   epi %>% 
   subset_taxa(taxa_sums(epi) > 0) %>% 
@@ -18,7 +18,7 @@ epi <-
 epi <- psmelt(epi)
 endo <- 
   fung %>% 
-  subset_samples(sample_type == "endophyte")
+  subset_samples(sample_type == "endophyte" & seq_date == 2023)
 endo <- 
   endo %>% 
   subset_taxa(taxa_sums(endo) > 0) %>% 

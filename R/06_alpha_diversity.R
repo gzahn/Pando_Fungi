@@ -16,11 +16,10 @@ source("./R/functions.R")
 
 # DATA ####
 # asv-level physeq
-ps <- readRDS("./Output/ps_cleaned_w_tree.RDS")
+ps <- readRDS("./Output/clean_phyloseq_object.RDS")
 # species-level physeq
 ps_species <- 
   tax_glom(ps,"Species",NArm = FALSE)
-
 
 # richness
 # shannon div
@@ -34,28 +33,30 @@ ps <- add_alphadiv_measures(ps)
 
 # extract sample data
 sam <- ps@sam_data %>% as("data.frame")
-
+readRDS("./Output/alpha_div_models.RDS") %>% filter(p.value < 0.05)
 # check correlation of vars
-glm(data=sam,formula = distance_from_edge ~ sample_type) %>% 
+glm(data=sam,formula = distance_from_edge ~ sample_type * seq_date) %>% 
   summary
 
-m1 <- glm(data=sam,formula = asv_richness ~ sample_type * distance_from_edge * factor(collection_round)) %>% 
+m1 <- glm(data=sam,formula = asv_richness ~ sample_type * distance_from_edge * factor(seq_date)) %>% 
   tidy() %>% mutate(outcome = "asv_richness")
-m2 <- glm(data=sam,formula = asv_shannon ~ sample_type * distance_from_edge * factor(collection_round)) %>% 
+m2 <- glm(data=sam,formula = asv_shannon ~ sample_type * distance_from_edge * factor(seq_date)) %>% 
   tidy() %>% mutate(outcome = "asv_shannon")
-m3 <- glm(data=sam,formula = asv_simpson ~ sample_type * distance_from_edge * factor(collection_round)) %>% 
+m3 <- glm(data=sam,formula = asv_simpson ~ sample_type * distance_from_edge * factor(seq_date)) %>% 
   tidy() %>% mutate(outcome = "asv_simpson")
-m4 <- glm(data=sam,formula = spp_richness ~ sample_type * distance_from_edge * factor(collection_round)) %>% 
+m4 <- glm(data=sam,formula = spp_richness ~ sample_type * distance_from_edge * factor(seq_date)) %>% 
   tidy() %>% mutate(outcome = "spp_richness")
-m5 <- glm(data=sam,formula = spp_shannon ~ sample_type * distance_from_edge * factor(collection_round)) %>% 
+m5 <- glm(data=sam,formula = spp_shannon ~ sample_type * distance_from_edge * factor(seq_date)) %>% 
   tidy() %>% mutate(outcome = "spp_shannon")
-m6 <- glm(data=sam,formula = spp_simpson ~ sample_type * distance_from_edge * factor(collection_round)) %>% 
+m6 <- glm(data=sam,formula = spp_simpson ~ sample_type * distance_from_edge * factor(seq_date)) %>% 
   tidy() %>% mutate(outcome = "spp_simpson")
 
 mod_tab <- list(m1,m2,m3,m4,m5,m6) %>% 
   purrr::reduce(full_join) %>% 
   filter(term != "(Intercept)") %>% 
-  mutate(term = term %>% str_remove("sample_type") %>% str_remove("factor\\(collection_round\\)"))
+  mutate(term = term %>% str_remove("sample_type") %>% str_remove("factor\\(seq_date\\)"))
+mod_tab %>% 
+  filter(p.value < 0.05)
 saveRDS(mod_tab,"./Output/alpha_div_models.RDS")
 
 
@@ -107,6 +108,7 @@ df %>%
         axis.ticks.x = element_blank()) +
   labs(color="Sample type",x="Samples",y="Diversity value") +
   scale_color_manual(values=sampletypecolors)
+alpha_plot
 saveRDS(alpha_plot,"./Output/figs/alpha_plot.RDS")
 ggsave("./Output/figs/alpha_plot.png",dpi=300,height = 6,width = 6)
 
